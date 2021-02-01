@@ -3,6 +3,7 @@ import nltk
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
+from scipy import stats
 
 
 def tokenize_song(path_to_song, sheet):
@@ -25,9 +26,9 @@ def tokenize_song(path_to_song, sheet):
     #Additionally: parts of speech selection
 
     #selecting adjectives, nouns, plural nouns, verbs present tense, verbs past tense, modal verbs, verbs, adverbs
-    #list_to_select =  ['JJ', 'NN', 'NNS', 'VBP', 'VBD', 'MD', 'VB', 'RB'] 
-    #identifying the part of speech of each word in a line 
-    #tokens = [[word[0] for word in nltk.pos_tag(line) if word[1] in list_to_select] for line in tokens] 
+    list_to_select =  ['JJ', 'NN', 'NNS', 'VBP', 'VBD', 'MD', 'VB', 'RB'] 
+    # identifying the part of speech of each word in a line 
+    tokens = [[word[0] for word in nltk.pos_tag(line) if word[1] in list_to_select] for line in tokens] 
     
     
     return tokens
@@ -61,7 +62,7 @@ def make_sent_means(senti_art, song_tokens):
     return result
 
 
-def art_plots(results, query_value_inx, save_path, sheet):
+def art_plots(results, query_value_inx, save_path, sheet, df_liking, df_striking):
     """
     makes a plot
     
@@ -80,6 +81,9 @@ def art_plots(results, query_value_inx, save_path, sheet):
 
     #plot AAPz, fear_z etc.
     results.set_index(results.index+1,inplace=True)
+    #create new columns with liking and striking mean values
+    results['Liking'] = df_liking.mean()
+    results['Striking'] = df_striking.mean()
     
     results.plot(kind='bar',alpha=0.75, rot=0, ax=ax)
     plt.xlabel("Sentence #")
@@ -90,7 +94,7 @@ def art_plots(results, query_value_inx, save_path, sheet):
     plt.close()
 
     
-def full_processing(song_file, sheet, sa):
+def full_processing(song_file, sheet, sa, df_liking, df_striking):
     """
     
     
@@ -108,7 +112,7 @@ def full_processing(song_file, sheet, sa):
         # Step 3
         # Select only AAPz
         for i in [0]: # range(len(song_results.columns))
-            art_plots(song_results, i, song_file, sheet)
+            art_plots(song_results, i, song_file, sheet, df_liking, df_striking)
 
 
         # Step 4
@@ -125,3 +129,28 @@ def full_processing(song_file, sheet, sa):
         print('DONE')
     else:
         print('The file does not exist')
+        
+        
+def normalize(df):
+    data =  df.to_numpy()
+    data_std = (data - data.mean(axis=1, keepdims=True))/data.std(axis=1, keepdims=True) 
+    return pd.DataFrame(data=data_std)
+
+
+def plot_norm_outliers(df, song, group, n_not_norm=3):
+    for i, x in enumerate(df.to_numpy()):
+        _, p = stats.kstest(x, 'norm')
+        df.loc[i, 'is_norm'] = p
+
+    sort_by_norm = df['is_norm'].to_numpy().argsort()
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    df.iloc[:, :-1].T.plot.kde(legend=False, ax=ax)
+    # df.iloc[sort_by_norm[n_not_norm:], :-1].T.plot.kde(legend=False, ax=ax, c='grey')
+    # df.iloc[sort_by_norm[:n_not_norm], :-1].T.plot.kde(legend=False, ax=ax, c='red')
+
+    plt.xlabel('Standartized responses')
+    
+    file_name = f"song_{song}_{group}.png" 
+    plt.savefig(fname=file_name, dpi=200)
+    plt.close()
