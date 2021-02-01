@@ -51,7 +51,7 @@ def make_sent_means(senti_art, song_tokens):
         dt = senti_art.query('word in @t')
         
         #cleaning (taking into analysis words that are longer than 2 symbols)
-        #dt = dt.loc[[True if len(i)>2 else False for i in dt["word"].tolist()], :]
+        dt = dt.loc[[True if len(i)>2 else False for i in dt["word"].tolist()], :]
         #estimating the mean for all columns, leaving only numbers and appending them to the empty list created before
         sent_means.append(dt.iloc[:, 1:].mean().to_numpy())
     
